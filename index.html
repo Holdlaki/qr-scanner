@@ -73,6 +73,8 @@
         
         #qr-reader-results.success { color: var(--success-color); font-weight: 600; }
         #qr-reader-results.error { color: var(--error-color); font-weight: 600; }
+        #qr-reader-results a { color: var(--primary-color); text-decoration: underline; }
+
 
         #scanButton {
             margin-top: 20px;
@@ -113,19 +115,26 @@
             const resultsDiv = document.getElementById('qr-reader-results');
 
             const requiredPrefix = 'http://mrp.earts/part/';
-            const newPrefix = 'http://mrp.earts/stocktake/';
             let isScanning = false;
             
             // Initialize the scanner but don't start it yet.
             const html5Qrcode = new Html5Qrcode("qr-reader");
 
             const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                // Check if the scanned text starts with the required prefix
                 if (decodedText.startsWith(requiredPrefix)) {
+                    // Stop the scanner immediately
                     stopScanning();
-                    const newUrl = decodedText.replace(requiredPrefix, newPrefix);
-                    resultsDiv.innerHTML = `Match Found! Opening link...`;
+                    
+                    // The original URL from the QR code
+                    const originalUrl = decodedText;
+                    
+                    // Display the clickable link in the results area
+                    resultsDiv.innerHTML = `Match Found: <a href="${originalUrl}" target="_blank">${originalUrl}</a>`;
                     resultsDiv.classList.add('success');
-                    window.open(newUrl, '_blank');
+                    
+                    // Open the original link in a new tab
+                    window.open(originalUrl, '_blank');
                 }
             };
 
@@ -143,7 +152,7 @@
 
                 try {
                     await html5Qrcode.start(
-                        { facingMode: "environment" }, // Or { deviceId: { exact: cameraId } }
+                        { facingMode: "environment" },
                         config,
                         qrCodeSuccessCallback,
                         (errorMessage) => { /* ignore scan failure */ }
