@@ -16,7 +16,7 @@
             --on-surface-color: #e1e1e1;
             --border-color: #2c2c2c;
             --success-color: #4caf50;
-            --error-color: #f44336; /* Color for error messages */
+            --error-color: #f44336;
         }
 
         body {
@@ -53,9 +53,7 @@
             display: none; /* Hidden by default */
         }
         
-        #qr-reader button {
-            display: none !important;
-        }
+        #qr-reader button { display: none !important; }
 
         #qr-reader-results {
             margin-top: 20px;
@@ -117,14 +115,11 @@
             const requiredPrefix = 'http://mrp.earts/part/';
             const newPrefix = 'http://mrp.earts/stocktake/';
             let isScanning = false;
+            
+            // Initialize the scanner but don't start it yet.
+            const html5Qrcode = new Html5Qrcode("qr-reader");
 
-            const html5QrcodeScanner = new Html5QrcodeScanner(
-                "qr-reader", 
-                { fps: 5, qrbox: { width: 250, height: 250 } },
-                /* verbose= */ false
-            );
-
-            function onScanSuccess(decodedText) {
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
                 if (decodedText.startsWith(requiredPrefix)) {
                     stopScanning();
                     const newUrl = decodedText.replace(requiredPrefix, newPrefix);
@@ -132,45 +127,52 @@
                     resultsDiv.classList.add('success');
                     window.open(newUrl, '_blank');
                 }
-            }
+            };
 
-            function onScanFailure(error) {
-                // This function is called when the scanner starts but fails to scan a QR code.
-                // We can mostly ignore it, but it's useful for debugging.
-                // console.log(`QR Code scan error: ${error}`);
-            }
+            const config = { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 },
+                facingMode: "environment" // Use the rear camera
+            };
 
-            function startScanning() {
+            async function startScanning() {
                 resultsDiv.innerHTML = 'Starting camera...';
-                resultsDiv.className = ''; // Reset classes
+                resultsDiv.className = '';
                 qrReaderDiv.style.display = 'block';
-                
-                // The render method itself doesn't return a promise, so we handle errors in callbacks.
-                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-                
-                scanButton.textContent = 'Stop Scanning';
-                isScanning = true;
+                scanButton.disabled = true; // Disable button while starting
+
+                try {
+                    await html5Qrcode.start(
+                        { facingMode: "environment" }, // Or { deviceId: { exact: cameraId } }
+                        config,
+                        qrCodeSuccessCallback,
+                        (errorMessage) => { /* ignore scan failure */ }
+                    );
+                    isScanning = true;
+                    scanButton.textContent = 'Stop Scanning';
+                } catch (err) {
+                    resultsDiv.innerHTML = `ERROR: Could not start camera. ${err}`;
+                    resultsDiv.className = 'error';
+                    qrReaderDiv.style.display = 'none';
+                    isScanning = false;
+                } finally {
+                    scanButton.disabled = false; // Re-enable button
+                }
             }
 
-            function stopScanning() {
-                // Check if the scanner is actually running before trying to stop it.
-                if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { // 2 means SCANNING
-                    html5QrcodeScanner.stop().then(() => {
-                        qrReaderDiv.style.display = 'none';
-                        scanButton.textContent = 'Scan QR Code';
-                        isScanning = false;
-                    }).catch(err => {
-                        console.error("Error stopping the scanner:", err);
-                        // Force UI reset even if stop fails
-                        qrReaderDiv.style.display = 'none';
-                        scanButton.textContent = 'Scan QR Code';
-                        isScanning = false;
-                    });
-                } else {
-                    // If not scanning, just reset the UI.
+            async function stopScanning() {
+                if (!isScanning) return;
+                scanButton.disabled = true;
+
+                try {
+                    await html5Qrcode.stop();
+                    isScanning = false;
                     qrReaderDiv.style.display = 'none';
                     scanButton.textContent = 'Scan QR Code';
-                    isScanning = false;
+                } catch (err) {
+                    console.error("Failed to stop scanner:", err);
+                } finally {
+                    scanButton.disabled = false;
                 }
             }
 
@@ -178,6 +180,11 @@
                 if (isScanning) {
                     stopScanning();
                 } else {
+                    if (location.protocol !== 'https:') {
+                        resultsDiv.innerHTML = 'ERROR: Camera access requires a secure (HTTPS) connection.';
+                        resultsDiv.className = 'error';
+                        return;
+                    }
                     startScanning();
                 }
             });
