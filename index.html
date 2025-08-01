@@ -12,6 +12,7 @@
             --background-color: #121212;
             --surface-color: #1e1e1e;
             --primary-color: #03dac6;
+            --secondary-color: #bb86fc;
             --on-surface-color: #e1e1e1;
             --border-color: #2c2c2c;
             --success-color: #4caf50;
@@ -24,7 +25,7 @@
             align-items: center;
             justify-content: flex-start;
             padding-top: 10vh;
-            height: 100vh;
+            height: 70vh;
             margin: 0;
             padding-left: 1rem;
             padding-right: 1rem;
@@ -37,6 +38,7 @@
             color: var(--primary-color);
             font-weight: 600;
             text-align: center;
+            margin-bottom: 20px;
         }
 
         #qr-reader {
@@ -47,98 +49,122 @@
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            display: none; /* Hidden by default */
         }
         
+        /* This hides the default "Stop Scanning" button from the library */
         #qr-reader button {
             display: none !important;
         }
 
         #qr-reader-results {
-            margin-top: 24px;
+            margin-top: 20px;
             padding: 15px 20px;
             width: 100%;
             max-width: 400px;
             background-color: var(--surface-color);
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             word-wrap: break-word;
             text-align: center;
             min-height: 25px;
             font-size: 1em;
             font-weight: 400;
             box-sizing: border-box;
-            transition: color 0.3s ease;
+            transition: all 0.3s ease;
         }
         
         #qr-reader-results.success {
             color: var(--success-color);
             font-weight: 600;
         }
+
+        #scanButton {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #000;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #scanButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body>
 
     <h1>QR Code Scanner</h1>
+
     <div id="qr-reader"></div>
     <div id="qr-reader-results"></div>
     
+    <button id="scanButton">Scan QR Code</button>
+
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     
     <script>
-        const resultsDiv = document.getElementById('qr-reader-results');
-        const requiredPrefix = 'http://mrp.earts/part/';
-        const newPrefix = 'http://mrp.earts/stocktake/';
-        
-        // This variable will hold the last URL we successfully processed.
-        let lastProcessedUrl = '';
+        document.addEventListener('DOMContentLoaded', () => {
+            const scanButton = document.getElementById('scanButton');
+            const qrReaderDiv = document.getElementById('qr-reader');
+            const resultsDiv = document.getElementById('qr-reader-results');
 
-        function onScanSuccess(decodedText, decodedResult) {
-            // If the new scan is the same as the one we just processed, do nothing.
-            if (decodedText === lastProcessedUrl) {
-                return;
-            }
+            const requiredPrefix = 'http://mrp.earts/part/';
+            const newPrefix = 'http://mrp.earts/stocktake/';
+            let isScanning = false;
 
-            // Check if the scanned text starts with the required URL prefix.
-            if (decodedText.startsWith(requiredPrefix)) {
-                
-                // Remember this URL so we don't process it again immediately.
-                lastProcessedUrl = decodedText;
+            const html5QrcodeScanner = new Html5QrcodeScanner(
+                "qr-reader", 
+                { fps: 5, qrbox: { width: 250, height: 250 } },
+                /* verbose= */ false
+            );
 
-                // Create the new URL by replacing the prefix.
-                const newUrl = decodedText.replace(requiredPrefix, newPrefix);
+            function onScanSuccess(decodedText) {
+                if (decodedText.startsWith(requiredPrefix)) {
+                    // Stop the scanner and then perform actions
+                    stopScanning();
 
-                // Provide feedback to the user and open the new page.
-                resultsDiv.innerHTML = `Match Found! Opening link...`;
-                resultsDiv.classList.add('success');
-                window.open(newUrl, '_blank');
-
-                // After 5 seconds, clear the last processed URL to allow the same code
-                // to be scanned again if needed.
-                setTimeout(() => {
-                    lastProcessedUrl = '';
-                    resultsDiv.innerHTML = '';
-                    resultsDiv.classList.remove('success');
-                }, 5000);
-            }
-        }
-
-        function onScanFailure(error) {
-            // ignore scan failure.
-        }
-
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader", 
-            { 
-                fps: 5, // Scans 5 times per second for responsiveness
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                    return { width: minEdge * 0.7, height: minEdge * 0.7 };
+                    const newUrl = decodedText.replace(requiredPrefix, newPrefix);
+                    resultsDiv.innerHTML = `Match Found! Opening link...`;
+                    resultsDiv.classList.add('success');
+                    window.open(newUrl, '_blank');
                 }
-            },
-            /* verbose= */ false
-        );
+            }
 
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            function startScanning() {
+                resultsDiv.innerHTML = '';
+                resultsDiv.classList.remove('success');
+                qrReaderDiv.style.display = 'block';
+                html5QrcodeScanner.render(onScanSuccess, undefined);
+                scanButton.textContent = 'Stop Scanning';
+                isScanning = true;
+            }
+
+            function stopScanning() {
+                html5QrcodeScanner.stop().then(() => {
+                    qrReaderDiv.style.display = 'none';
+                    scanButton.textContent = 'Scan QR Code';
+                    isScanning = false;
+                }).catch(err => {
+                    // Ignore errors if the scanner is already stopped.
+                });
+            }
+
+            scanButton.addEventListener('click', () => {
+                if (isScanning) {
+                    stopScanning();
+                } else {
+                    startScanning();
+                }
+            });
+        });
     </script>
 </body>
 </html>
