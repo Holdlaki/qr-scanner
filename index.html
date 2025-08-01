@@ -88,36 +88,38 @@
         const resultsDiv = document.getElementById('qr-reader-results');
         const requiredPrefix = 'http://mrp.earts/part/';
         const newPrefix = 'http://mrp.earts/stocktake/';
-        let isThrottled = false; // Prevents multiple scans of the same code
+        
+        // This variable will hold the last URL we successfully processed.
+        let lastProcessedUrl = '';
 
         function onScanSuccess(decodedText, decodedResult) {
-            // If we are in the "throttled" state, ignore the scan and do nothing.
-            if (isThrottled) {
+            // If the new scan is the same as the one we just processed, do nothing.
+            if (decodedText === lastProcessedUrl) {
                 return;
             }
 
             // Check if the scanned text starts with the required URL prefix.
             if (decodedText.startsWith(requiredPrefix)) {
                 
-                // Set the throttled state to true to prevent re-scans.
-                isThrottled = true;
+                // Remember this URL so we don't process it again immediately.
+                lastProcessedUrl = decodedText;
 
                 // Create the new URL by replacing the prefix.
                 const newUrl = decodedText.replace(requiredPrefix, newPrefix);
 
                 // Provide feedback to the user and open the new page.
-                resultsDiv.innerHTML = `Match Found! Redirecting...`;
+                resultsDiv.innerHTML = `Match Found! Opening link...`;
                 resultsDiv.classList.add('success');
                 window.open(newUrl, '_blank');
 
-                // After 3 seconds, reset the state to allow for a new scan.
+                // After 5 seconds, clear the last processed URL to allow the same code
+                // to be scanned again if needed.
                 setTimeout(() => {
-                    isThrottled = false;
+                    lastProcessedUrl = '';
                     resultsDiv.innerHTML = '';
                     resultsDiv.classList.remove('success');
-                }, 3000);
+                }, 5000);
             }
-            // If the QR code doesn't match the prefix, nothing happens.
         }
 
         function onScanFailure(error) {
@@ -127,7 +129,7 @@
         let html5QrcodeScanner = new Html5QrcodeScanner(
             "qr-reader", 
             { 
-                fps: 2, // Scans 2 times per second.
+                fps: 5, // Scans 5 times per second for responsiveness
                 qrbox: (viewfinderWidth, viewfinderHeight) => {
                     const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
                     return { width: minEdge * 0.7, height: minEdge * 0.7 };
