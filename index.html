@@ -12,6 +12,7 @@
             --background-color: #121212;
             --surface-color: #1e1e1e;
             --primary-color: #03dac6;
+            --secondary-color: #bb86fc;
             --on-surface-color: #e1e1e1;
             --border-color: #2c2c2c;
         }
@@ -24,29 +25,38 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            padding: 0 1rem; /* Add some padding for smaller screens */
             background-color: var(--background-color);
             color: var(--on-surface-color);
+            box-sizing: border-box;
         }
 
         h1 {
             color: var(--primary-color);
             font-weight: 600;
+            text-align: center;
         }
 
         #qr-reader {
-            width: 90%;
+            width: 100%;
             max-width: 400px;
             background-color: var(--surface-color);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: relative; /* Needed for positioning elements inside */
+        }
+        
+        /* This hides the default "Stop Scanning" button from the library */
+        #qr-reader button {
+            display: none !important;
         }
 
         #qr-reader-results {
             margin-top: 24px;
             padding: 15px 20px;
-            width: 90%;
+            width: 100%;
             max-width: 400px;
             background-color: var(--surface-color);
             border-radius: 12px;
@@ -56,6 +66,7 @@
             min-height: 25px;
             font-size: 1em;
             font-weight: 400;
+            box-sizing: border-box;
         }
         
         #qr-reader-results a {
@@ -68,6 +79,31 @@
         #qr-reader-results a:hover {
             color: #ffffff;
         }
+
+        /* Our new, modern button style */
+        #scan-control-button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #000;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #scan-control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #scan-control-button:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -75,45 +111,81 @@
     <h1>QR Code Scanner</h1>
     <div id="qr-reader"></div>
     <div id="qr-reader-results">Point camera at a QR code...</div>
+    
+    <!-- This is our new custom button -->
+    <button id="scan-control-button">Stop Scanning</button>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     
     <script>
-        function onScanSuccess(decodedText, decodedResult) {
+        document.addEventListener('DOMContentLoaded', () => {
             const resultsDiv = document.getElementById('qr-reader-results');
-            
-            // Sanitize the output to prevent XSS
-            const sanitizedText = document.createElement('div');
-            sanitizedText.innerText = decodedText;
-            
-            // Check if the result is a URL and make it clickable
-            try {
-                const url = new URL(decodedText);
-                resultsDiv.innerHTML = `Scanned URL: <a href="${sanitizedText.innerHTML}" target="_blank">${sanitizedText.innerHTML}</a>`;
-            } catch (_) {
-                resultsDiv.innerHTML = `Scanned Text: ${sanitizedText.innerHTML}`;
-            }
-        }
+            const toggleButton = document.getElementById('scan-control-button');
+            let isScanning = false;
 
-        function onScanFailure(error) {
-            // This function is called when no QR code is found in a frame.
-            // We can ignore it to keep the scanning continuous.
-        }
+            // --- QR Scanner Setup ---
+            const html5QrcodeScanner = new Html5QrcodeScanner(
+                "qr-reader", 
+                { 
+                    fps: 10, 
+                    qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                        return { width: minEdge * 0.7, height: minEdge * 0.7 };
+                    }
+                },
+                /* verbose= */ false
+            );
 
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader", 
-            { 
-                fps: 10, 
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                    return { width: minEdge * 0.7, height: minEdge * 0.7 };
+            // --- Functions for Scanning ---
+            function onScanSuccess(decodedText, decodedResult) {
+                // Sanitize the output to prevent potential XSS attacks
+                const sanitizedText = document.createElement('div');
+                sanitizedText.innerText = decodedText;
+                
+                // Check if the result is a URL and make it clickable
+                try {
+                    new URL(decodedText); // This will throw an error if it's not a valid URL
+                    resultsDiv.innerHTML = `Scanned URL: <a href="${sanitizedText.innerHTML}" target="_blank">${sanitizedText.innerHTML}</a>`;
+                } catch (_) {
+                    resultsDiv.innerHTML = `Scanned Text: ${sanitizedText.innerHTML}`;
                 }
-            },
-            /* verbose= */ false
-        );
+            }
 
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            function onScanFailure(error) {
+                // This function is called when no QR code is found in a frame.
+                // We can ignore it to keep the scanning continuous.
+            }
+
+            // --- Control Logic ---
+            function startScan() {
+                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                isScanning = true;
+                toggleButton.textContent = 'Stop Scanning';
+                resultsDiv.innerHTML = 'Point camera at a QR code...';
+            }
+
+            function stopScan() {
+                html5QrcodeScanner.stop().then(() => {
+                    isScanning = false;
+                    toggleButton.textContent = 'Start Scanning';
+                    resultsDiv.innerHTML = 'Scanner is stopped.';
+                }).catch((err) => {
+                    console.error("Failed to stop the scanner.", err);
+                });
+            }
+
+            // --- Event Listener for our Button ---
+            toggleButton.addEventListener('click', () => {
+                if (isScanning) {
+                    stopScan();
+                } else {
+                    startScan();
+                }
+            });
+
+            // --- Initial Start ---
+            startScan();
+        });
     </script>
-
 </body>
 </html>
