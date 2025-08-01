@@ -99,7 +99,7 @@
 </head>
 <body>
 
-    <h1>QR Code Scanner</h1>
+    <h1>E-Arts stock check</h1>
 
     <div id="qr-reader"></div>
     <div id="qr-reader-results">Click button to start scanner</div>
@@ -145,7 +145,7 @@
             };
 
             async function startScanning() {
-                resultsDiv.innerHTML = 'Starting camera...';
+                resultsDiv.innerHTML = 'Point to a QR code...';
                 resultsDiv.className = '';
                 qrReaderDiv.style.display = 'block';
                 scanButton.disabled = true; // Disable button while starting
@@ -201,3 +201,4 @@
     </script>
 </body>
 </html>
+
