@@ -14,6 +14,7 @@
             --primary-color: #03dac6;
             --on-surface-color: #e1e1e1;
             --border-color: #2c2c2c;
+            --success-color: #4caf50;
         }
 
         body {
@@ -66,11 +67,11 @@
             font-size: 1em;
             font-weight: 400;
             box-sizing: border-box;
+            transition: color 0.3s ease;
         }
         
-        #qr-reader-results a {
-            color: var(--primary-color);
-            text-decoration: none;
+        #qr-reader-results.success {
+            color: var(--success-color);
             font-weight: 600;
         }
     </style>
@@ -84,18 +85,39 @@
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     
     <script>
+        const resultsDiv = document.getElementById('qr-reader-results');
+        const requiredPrefix = 'http://mrp.earts/part/';
+        const newPrefix = 'http://mrp.earts/stocktake/';
+        let isThrottled = false; // Prevents multiple scans of the same code
+
         function onScanSuccess(decodedText, decodedResult) {
-            const resultsDiv = document.getElementById('qr-reader-results');
-            
-            const sanitizedText = document.createElement('div');
-            sanitizedText.innerText = decodedText;
-            
-            try {
-                new URL(decodedText);
-                resultsDiv.innerHTML = `Scanned URL: <a href="${sanitizedText.innerHTML}" target="_blank">${sanitizedText.innerHTML}</a>`;
-            } catch (_) {
-                resultsDiv.innerHTML = `Scanned Text: ${sanitizedText.innerHTML}`;
+            // If we are in the "throttled" state, ignore the scan and do nothing.
+            if (isThrottled) {
+                return;
             }
+
+            // Check if the scanned text starts with the required URL prefix.
+            if (decodedText.startsWith(requiredPrefix)) {
+                
+                // Set the throttled state to true to prevent re-scans.
+                isThrottled = true;
+
+                // Create the new URL by replacing the prefix.
+                const newUrl = decodedText.replace(requiredPrefix, newPrefix);
+
+                // Provide feedback to the user and open the new page.
+                resultsDiv.innerHTML = `Match Found! Redirecting...`;
+                resultsDiv.classList.add('success');
+                window.open(newUrl, '_blank');
+
+                // After 3 seconds, reset the state to allow for a new scan.
+                setTimeout(() => {
+                    isThrottled = false;
+                    resultsDiv.innerHTML = '';
+                    resultsDiv.classList.remove('success');
+                }, 3000);
+            }
+            // If the QR code doesn't match the prefix, nothing happens.
         }
 
         function onScanFailure(error) {
@@ -105,7 +127,7 @@
         let html5QrcodeScanner = new Html5QrcodeScanner(
             "qr-reader", 
             { 
-                fps: 10, 
+                fps: 2, // Scans 2 times per second.
                 qrbox: (viewfinderWidth, viewfinderHeight) => {
                     const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
                     return { width: minEdge * 0.7, height: minEdge * 0.7 };
