@@ -16,6 +16,7 @@
             --on-surface-color: #e1e1e1;
             --border-color: #2c2c2c;
             --success-color: #4caf50;
+            --error-color: #f44336; /* Color for error messages */
         }
 
         body {
@@ -24,7 +25,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding-top: 5vh;
+            padding-top: 10vh;
             height: 100vh;
             margin: 0;
             padding-left: 1rem;
@@ -52,7 +53,6 @@
             display: none; /* Hidden by default */
         }
         
-        /* This hides the default "Stop Scanning" button from the library */
         #qr-reader button {
             display: none !important;
         }
@@ -73,10 +73,8 @@
             transition: all 0.3s ease;
         }
         
-        #qr-reader-results.success {
-            color: var(--success-color);
-            font-weight: 600;
-        }
+        #qr-reader-results.success { color: var(--success-color); font-weight: 600; }
+        #qr-reader-results.error { color: var(--error-color); font-weight: 600; }
 
         #scanButton {
             margin-top: 20px;
@@ -104,7 +102,7 @@
     <h1>QR Code Scanner</h1>
 
     <div id="qr-reader"></div>
-    <div id="qr-reader-results"></div>
+    <div id="qr-reader-results">Click button to start scanner</div>
     
     <button id="scanButton">Scan QR Code</button>
 
@@ -128,9 +126,7 @@
 
             function onScanSuccess(decodedText) {
                 if (decodedText.startsWith(requiredPrefix)) {
-                    // Stop the scanner and then perform actions
                     stopScanning();
-
                     const newUrl = decodedText.replace(requiredPrefix, newPrefix);
                     resultsDiv.innerHTML = `Match Found! Opening link...`;
                     resultsDiv.classList.add('success');
@@ -138,23 +134,44 @@
                 }
             }
 
+            function onScanFailure(error) {
+                // This function is called when the scanner starts but fails to scan a QR code.
+                // We can mostly ignore it, but it's useful for debugging.
+                // console.log(`QR Code scan error: ${error}`);
+            }
+
             function startScanning() {
-                resultsDiv.innerHTML = '';
-                resultsDiv.classList.remove('success');
+                resultsDiv.innerHTML = 'Starting camera...';
+                resultsDiv.className = ''; // Reset classes
                 qrReaderDiv.style.display = 'block';
-                html5QrcodeScanner.render(onScanSuccess, undefined);
+                
+                // The render method itself doesn't return a promise, so we handle errors in callbacks.
+                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                
                 scanButton.textContent = 'Stop Scanning';
                 isScanning = true;
             }
 
             function stopScanning() {
-                html5QrcodeScanner.stop().then(() => {
+                // Check if the scanner is actually running before trying to stop it.
+                if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { // 2 means SCANNING
+                    html5QrcodeScanner.stop().then(() => {
+                        qrReaderDiv.style.display = 'none';
+                        scanButton.textContent = 'Scan QR Code';
+                        isScanning = false;
+                    }).catch(err => {
+                        console.error("Error stopping the scanner:", err);
+                        // Force UI reset even if stop fails
+                        qrReaderDiv.style.display = 'none';
+                        scanButton.textContent = 'Scan QR Code';
+                        isScanning = false;
+                    });
+                } else {
+                    // If not scanning, just reset the UI.
                     qrReaderDiv.style.display = 'none';
                     scanButton.textContent = 'Scan QR Code';
                     isScanning = false;
-                }).catch(err => {
-                    // Ignore errors if the scanner is already stopped.
-                });
+                }
             }
 
             scanButton.addEventListener('click', () => {
@@ -168,5 +185,3 @@
     </script>
 </body>
 </html>
-
-
