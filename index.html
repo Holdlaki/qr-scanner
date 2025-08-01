@@ -4,83 +4,114 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Code Scanner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --background-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #03dac6;
+            --on-surface-color: #e1e1e1;
+            --border-color: #2c2c2c;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Poppins', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #f0f2f5;
+            background-color: var(--background-color);
+            color: var(--on-surface-color);
         }
+
+        h1 {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
         #qr-reader {
             width: 90%;
-            max-width: 500px;
-            border: 2px solid #ccc;
-            border-radius: 8px;
+            max-width: 400px;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
             overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
+
         #qr-reader-results {
-            margin-top: 20px;
-            padding: 10px;
+            margin-top: 24px;
+            padding: 15px 20px;
             width: 90%;
-            max-width: 500px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 400px;
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             word-wrap: break-word;
             text-align: center;
-            min-height: 20px;
-            font-size: 1.1em;
+            min-height: 25px;
+            font-size: 1em;
+            font-weight: 400;
         }
-        a {
-            color: #007bff;
+        
+        #qr-reader-results a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        #qr-reader-results a:hover {
+            color: #ffffff;
         }
     </style>
 </head>
 <body>
 
-    <h1>Web QR Code Scanner</h1>
+    <h1>QR Code Scanner</h1>
     <div id="qr-reader"></div>
-    <h3>Result:</h3>
-    <div id="qr-reader-results">Scan a code to see the result here.</div>
+    <div id="qr-reader-results">Point camera at a QR code...</div>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     
     <script>
         function onScanSuccess(decodedText, decodedResult) {
-            // Get the results div
             const resultsDiv = document.getElementById('qr-reader-results');
             
-            // Display the decoded text
-            resultsDiv.innerText = decodedText;
+            // Sanitize the output to prevent XSS
+            const sanitizedText = document.createElement('div');
+            sanitizedText.innerText = decodedText;
             
-            // If the text is a valid URL, make it a clickable link
+            // Check if the result is a URL and make it clickable
             try {
                 const url = new URL(decodedText);
-                resultsDiv.innerHTML = `Scanned URL: <a href="${decodedText}" target="_blank">${decodedText}</a>`;
+                resultsDiv.innerHTML = `Scanned URL: <a href="${sanitizedText.innerHTML}" target="_blank">${sanitizedText.innerHTML}</a>`;
             } catch (_) {
-                // Not a URL, just display the text
-                resultsDiv.innerText = decodedText;
+                resultsDiv.innerHTML = `Scanned Text: ${sanitizedText.innerHTML}`;
             }
         }
 
         function onScanFailure(error) {
-            // This function is called when no QR code is found.
+            // This function is called when no QR code is found in a frame.
             // We can ignore it to keep the scanning continuous.
-            // console.warn(`Code scan error = ${error}`);
         }
 
-        // Create a new scanner instance
         let html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader", // ID of the div to render the scanner in
-            { fps: 10, qrbox: { width: 250, height: 250 } }, // Config options
+            "qr-reader", 
+            { 
+                fps: 10, 
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                    return { width: minEdge * 0.7, height: minEdge * 0.7 };
+                }
+            },
             /* verbose= */ false
         );
 
-        // Start scanning
         html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     </script>
 
