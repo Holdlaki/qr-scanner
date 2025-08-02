@@ -188,6 +188,7 @@
             scanButton.addEventListener('click', () => {
                 if (isScanning) {
                     stopScanning();
+                    resultsDiv.innerHTML = 'Click button to start scanner';
                 } else {
                     if (location.protocol !== 'https:') {
                         resultsDiv.innerHTML = 'ERROR: Camera access requires a secure (HTTPS) connection.';
@@ -201,5 +202,6 @@
     </script>
 </body>
 </html>
+
 
 
