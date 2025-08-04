@@ -108,100 +108,108 @@
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const scanButton = document.getElementById('scanButton');
-            const qrReaderDiv = document.getElementById('qr-reader');
-            const resultsDiv = document.getElementById('qr-reader-results');
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const scanButton = document.getElementById('scanButton');
+        const qrReaderDiv = document.getElementById('qr-reader');
+        const resultsDiv = document.getElementById('qr-reader-results');
 
-            const requiredPrefix = 'http://mrp.earts/part/';
-            let isScanning = false;
-            
-            // Initialize the scanner but don't start it yet.
-            const html5Qrcode = new Html5Qrcode("qr-reader");
+        const requiredPrefix = 'http://mrp.earts/part/';
+        let isScanning = false;
+        
+        // Initialize the scanner but don't start it yet.
+        const html5Qrcode = new Html5Qrcode("qr-reader");
 
-            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-                // Check if the scanned text starts with the required prefix
-                if (decodedText.startsWith(requiredPrefix)) {
-                    // Stop the scanner immediately
-                    stopScanning();
-                    
-                    // The original URL from the QR code
-                    const originalUrl = decodedText;
-                    
-                    // Display the clickable link in the results area
-                    resultsDiv.innerHTML = `Match Found: <a href="${originalUrl}" target="_blank">${originalUrl}</a>`;
-                    resultsDiv.classList.add('success');
-                    
-                    // Open the original link in a new tab
-                    window.open(originalUrl, '_blank');
-                }
-            };
+        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+            // Check if the scanned text starts with the required prefix
+            if (decodedText.startsWith(requiredPrefix)) {
+                // Stop the scanner immediately
+                stopScanning();
+                
+                // The original URL from the QR code
+                const originalUrl = decodedText;
+                
+                // Display the clickable link in the results area
+                resultsDiv.innerHTML = `Match Found: <a href="${originalUrl}" target="_blank">${originalUrl}</a>`;
+                resultsDiv.classList.add('success');
+                
+                // Open the original link in a new tab
+                window.open(originalUrl, '_blank');
+            }
+        };
 
-            const config = { 
-                fps: 10, 
-                qrbox: { width: 250, height: 250 },
-                facingMode: "environment" // Use the rear camera
-            };
+        async function startScanning() {
+            resultsDiv.innerHTML = 'Point to an ID label...';
+            resultsDiv.className = '';
+            qrReaderDiv.style.display = 'block';
+            scanButton.disabled = true; // Disable button while starting
 
-            async function startScanning() {
-                resultsDiv.innerHTML = 'Point to an ID label...';
-                resultsDiv.className = '';
-                qrReaderDiv.style.display = 'block';
-                scanButton.disabled = true; // Disable button while starting
+            try {
+                // Main change is here: Pass advanced constraints
+                await html5Qrcode.start(
+                    // 1. Camera Constraints: Request rear camera with zoom/torch
+                    { 
+                        facingMode: "environment",
+                        advanced: [{zoom: true}, {torch: true}]
+                    },
+                    // 2. Library Configuration
+                    { 
+                        fps: 10, 
+                        qrbox: { width: 250, height: 250 }
+                    },
+                    // 3. Success Callback
+                    qrCodeSuccessCallback,
+                    // 4. Error Callback (optional)
+                    (errorMessage) => { /* ignore scan failure */ }
+                );
+                isScanning = true;
+                scanButton.textContent = 'Stop scanner';
+            } catch (err) {
+                resultsDiv.innerHTML = `ERROR: Could not start camera. ${err}`;
+                resultsDiv.className = 'error';
+                qrReaderDiv.style.display = 'none';
+                isScanning = false;
+            } finally {
+                scanButton.disabled = false; // Re-enable button
+            }
+        }
 
-                try {
-                    await html5Qrcode.start(
-                        { facingMode: "environment" },
-                        config,
-                        qrCodeSuccessCallback,
-                        (errorMessage) => { /* ignore scan failure */ }
-                    );
-                    isScanning = true;
-                    scanButton.textContent = 'Stop scanner';
-                } catch (err) {
-                    resultsDiv.innerHTML = `ERROR: Could not start camera. ${err}`;
+        async function stopScanning() {
+            if (!isScanning) return;
+            scanButton.disabled = true;
+
+            try {
+                await html5Qrcode.stop();
+                isScanning = false;
+                qrReaderDiv.style.display = 'none';
+                scanButton.textContent = 'Start scanner';
+            } catch (err) {
+                console.error("Failed to stop scanner:", err);
+            } finally {
+                scanButton.disabled = false;
+            }
+        }
+
+        scanButton.addEventListener('click', () => {
+            if (isScanning) {
+                stopScanning();
+                resultsDiv.innerHTML = 'Click button to start scanner';
+            } else {
+                if (location.protocol !== 'https:') {
+                    resultsDiv.innerHTML = 'ERROR: Camera access requires a secure (HTTPS) connection.';
                     resultsDiv.className = 'error';
-                    qrReaderDiv.style.display = 'none';
-                    isScanning = false;
-                } finally {
-                    scanButton.disabled = false; // Re-enable button
+                    return;
                 }
+                startScanning();
             }
-
-            async function stopScanning() {
-                if (!isScanning) return;
-                scanButton.disabled = true;
-
-                try {
-                    await html5Qrcode.stop();
-                    isScanning = false;
-                    qrReaderDiv.style.display = 'none';
-                    scanButton.textContent = 'Start scanner';
-                } catch (err) {
-                    console.error("Failed to stop scanner:", err);
-                } finally {
-                    scanButton.disabled = false;
-                }
-            }
-
-            scanButton.addEventListener('click', () => {
-                if (isScanning) {
-                    stopScanning();
-                    resultsDiv.innerHTML = 'Click button to start scanner';
-                } else {
-                    if (location.protocol !== 'https:') {
-                        resultsDiv.innerHTML = 'ERROR: Camera access requires a secure (HTTPS) connection.';
-                        resultsDiv.className = 'error';
-                        return;
-                    }
-                    startScanning();
-                }
-            });
         });
-    </script>
+    });
+</script>
+    
+
 </body>
 </html>
+
 
 
 
