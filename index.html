@@ -142,28 +142,34 @@
     resultsDiv.innerHTML = 'Point to an ID label...';
     resultsDiv.className = '';
     qrReaderDiv.style.display = 'block';
-    scanButton.disabled = true; // Disable button while starting
+    scanButton.disabled = true;
 
     try {
-        // Corrected the structure of the first argument
         await html5Qrcode.start(
-            // 1. All camera constraints are now nested under a single 'video' key.
-            {
-                video: {
-                    facingMode: "environment",
-                    advanced: [{ zoom: true }, { torch: true }]
-                }
-            },
-            // 2. Library Configuration
+            // 1. Camera Selection (first argument)
+            // This is simple, as the error message requires.
+            { facingMode: "environment" },
+
+            // 2. Library Configuration (second argument)
+            // This now contains all other settings.
             {
                 fps: 10,
-                qrbox: { width: 250, height: 250 }
+                qrbox: { width: 250, height: 250 },
+                // Add advanced video constraints here.
+                videoConstraints: {
+                    facingMode: "environment",
+                    advanced: [
+                        { zoom: true },
+                        { torch: true }
+                    ]
+                }
             },
             // 3. Success Callback
             qrCodeSuccessCallback,
-            // 4. Error Callback (optional)
+            // 4. Error Callback
             (errorMessage) => { /* ignore scan failure */ }
         );
+
         isScanning = true;
         scanButton.textContent = 'Stop scanner';
     } catch (err) {
@@ -172,7 +178,7 @@
         qrReaderDiv.style.display = 'none';
         isScanning = false;
     } finally {
-        scanButton.disabled = false; // Re-enable button
+        scanButton.disabled = false;
     }
 }
 
@@ -211,6 +217,7 @@
 
 </body>
 </html>
+
 
 
 
